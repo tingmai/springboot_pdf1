@@ -86,10 +86,54 @@ ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
 
 
+===================
+EmailDetail.java
+============
+
+package com.northerncity.springboot;
+
+public class EmailDetail {
+	private String recipient;
+	private String subject;
+	private String msgBody;
+	private String attachment;
+	
+	
+	public String getRecipient() {
+		return recipient;
+	}
+	public void setRecipient(String recipient) {
+		this.recipient = recipient;
+	}
+	public String getSubject() {
+		return subject;
+	}
+	public void setSubject(String subject) {
+		this.subject = subject;
+	}
+	public String getMsgBody() {
+		return msgBody;
+	}
+	public void setMsgBody(String msgBody) {
+		this.msgBody = msgBody;
+	}
+	public String getAttachment() {
+		return attachment;
+	}
+	public void setAttachment(String attachment) {
+		this.attachment = attachment;
+	}
+	public EmailDetail() {
+		super();
+	}
+	
+
+}
+
+
 ----------------
 PDFController
 -------------
-
 
 package com.northerncity.springboot;
 
@@ -97,6 +141,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -106,18 +151,27 @@ import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
 @Controller
-public class PDFController {
+public class MailController {
 	
+	@Autowired
+	private OrderRepository orderRepo;
 	
 	@Autowired
 	private PDFService pdfservice;
 	
+	
+	
 	@Autowired
-	private SpringTemplateEngine springTemplateEngine;
+	private EmailService emailService;
+	
+	@Autowired
+	private JavaMailSender mailSender;
+	
 	
 	@GetMapping("/order")
 	public String orderPage(Model model) {
-		model.addAttribute("order",new Order());
+		Order order=orderRepo.getById((long)1);
+		model.addAttribute("order",order);
 		return "order";
 	}
 	
@@ -127,26 +181,55 @@ public class PDFController {
 		
 		String finalHtml = null;
 		
-        Context context = new Context();
 		
-		Map<String, Object> data = new HashMap<>();
+		String name=myorder.getName();
+		String price=String.valueOf(myorder.getPrice());
 		
-		data.put("orders", myorder);
+		String customer_email=myorder.getCustomer_email();
+		String customer_phone=myorder.getPhone();
+		String customer_address=myorder.getAddress();
 		
-		context.setVariables(data);
 		
 		
-		
-		//finalHtml = springTemplateEngine.process("template", context);
-		finalHtml="<html><body><h3>Order Form</h3><br> Product Name : Coke <br> Price : 2000 <br> Product Description : Testing ...</body></html>";
+		finalHtml="<html><body><h3>Order Form</h3><br>"
+				+ " Product Info: <br><hr>"
+				+ " Product Name : "+ name+" <br> "
+				+ "Price : "+price+"<br>"
+				+ " Customer Info: <br> <hr> "
+				+ " Customer Email: "+customer_email
+				+ " Customer Phone: "+customer_phone
+				+ " Customer Address: "+customer_address
+				+"</body></html>";
 		
 		
 		pdfservice.convertHTMLtoPDF(finalHtml);
 		
-		return "Success";
+		
+		/* sending pdf file copy to customer email */
+		
+		Order updateOrder=orderRepo.getById((long)1);
+		
+		EmailDetail emailDetail=new EmailDetail();
+		emailDetail.setRecipient(customer_email);
+		emailDetail.setMsgBody("Customer Order Details and Receipt");
+		emailDetail.setAttachment(updateOrder.getAttachment());
+		emailDetail.setSubject("Northern City Online Shop");
+		
+		
+		if(emailService.sendMailWithAttachment(emailDetail)) {
+			return "success";
+		}
+		else {
+			return "fail";
+		}
+
+		
+		
 	}
 
 }
+
+
 
 ============
 
@@ -371,6 +454,10 @@ pom.xml
 
 
 ===============================================
+
+EmailService.java
+
+====================================
 
 
 
