@@ -1,0 +1,377 @@
+
+=========================
+
+
+PDFService.java
+-----------------
+
+public interface PDFService {
+	
+	public void convertHTMLtoPDF(String htmlCodes);
+
+}
+
+
+PDFServiceImpl.java
+--------------------
+
+package com.northerncity.springboot;
+
+
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Random;
+
+import org.springframework.stereotype.Service;
+
+import com.itextpdf.html2pdf.ConverterProperties;
+import com.itextpdf.html2pdf.HtmlConverter;
+import com.itextpdf.html2pdf.resolver.font.DefaultFontProvider;
+import com.itextpdf.io.source.ByteArrayOutputStream;
+import com.itextpdf.kernel.pdf.PdfWriter;
+
+@Service
+public class PDFServiceImpl implements PDFService{
+
+	@Override
+	public void convertHTMLtoPDF(String htmlCodes) {
+		// TODO Auto-generated method stub
+		
+ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+		
+		try {
+			
+			PdfWriter pdfwriter = new PdfWriter(byteArrayOutputStream);
+			
+			DefaultFontProvider defaultFont = new DefaultFontProvider(false, true, false);
+			
+			ConverterProperties converterProperties = new ConverterProperties();
+			
+			converterProperties.setFontProvider(defaultFont);
+			
+			HtmlConverter.convertToPdf(htmlCodes, pdfwriter, converterProperties);
+			
+			//create pdf file folder
+			Random rand=new Random();
+			int random_no=rand.nextInt(9999)+1000;
+			String file_name="order"+random_no+".pdf";
+			
+			String pdfDir="./pdf_files/"+file_name;
+			
+	
+			FileOutputStream fout = new FileOutputStream(pdfDir);
+			
+			byteArrayOutputStream.writeTo(fout);
+			byteArrayOutputStream.close();
+			
+			byteArrayOutputStream.flush();
+			fout.close();
+			
+			
+			
+		} catch(Exception ex) {
+			
+			ex.printStackTrace();
+		}
+		
+		
+		
+	}
+
+}
+
+
+
+----------------
+PDFController
+-------------
+
+
+package com.northerncity.springboot;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.thymeleaf.context.Context;
+import org.thymeleaf.spring6.SpringTemplateEngine;
+
+@Controller
+public class PDFController {
+	
+	
+	@Autowired
+	private PDFService pdfservice;
+	
+	@Autowired
+	private SpringTemplateEngine springTemplateEngine;
+	
+	@GetMapping("/order")
+	public String orderPage(Model model) {
+		model.addAttribute("order",new Order());
+		return "order";
+	}
+	
+	
+	@PostMapping(value = "/saveOrder")
+	public String generateDocument(@ModelAttribute("order") Order myorder) {
+		
+		String finalHtml = null;
+		
+        Context context = new Context();
+		
+		Map<String, Object> data = new HashMap<>();
+		
+		data.put("orders", myorder);
+		
+		context.setVariables(data);
+		
+		
+		
+		//finalHtml = springTemplateEngine.process("template", context);
+		finalHtml="<html><body><h3>Order Form</h3><br> Product Name : Coke <br> Price : 2000 <br> Product Description : Testing ...</body></html>";
+		
+		
+		pdfservice.convertHTMLtoPDF(finalHtml);
+		
+		return "Success";
+	}
+
+}
+
+============
+
+Order.java
+==============
+
+
+package com.northerncity.springboot;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+
+@Entity(name="orders")
+public class Order {
+	
+	@Id
+	@GeneratedValue(strategy=GenerationType.IDENTITY)
+	private Long id;
+	private String name;
+	private int price;
+	private String description;
+	public Long getId() {
+		return id;
+	}
+	public void setId(Long id) {
+		this.id = id;
+	}
+	public String getName() {
+		return name;
+	}
+	public void setName(String name) {
+		this.name = name;
+	}
+	public int getPrice() {
+		return price;
+	}
+	public void setPrice(int price) {
+		this.price = price;
+	}
+	public String getDescription() {
+		return description;
+	}
+	public void setDescription(String description) {
+		this.description = description;
+	}
+	public Order(Long id, String name, int price, String description) {
+		super();
+		this.id = id;
+		this.name = name;
+		this.price = price;
+		this.description = description;
+	}
+	public Order() {
+		super();
+	}
+	
+	
+
+}
+
+
+========================
+application.properties
+=======================
+
+
+spring.mail.host=smtp.gmail.com
+spring.mail.username=zautingmai@gmail.com
+spring.mail.password=yezo bjsx wekv dlqm
+spring.mail.properties.mail.smtp.auth=true
+# TLS, port 587
+spring.mail.port=587
+spring.mail.properties.mail.smtp.starttls.enable=true
+
+# SSL, port 465
+#spring.mail.properties.mail.smtp.socketFactory.port = 465
+#spring.mail.propert
+
+
+spring.datasource.url=jdbc:mysql://127.0.0.1:3306/testmail
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL8Dialect
+spring.datasource.username=root
+spring.datasource.password=Admin@123
+spring.jpa.hibernate.ddl-auto=update
+logging.level.org.springframework.data=DEBUG
+
+=======================================
+
+
+templates
+-----------
+
+
+
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8">
+<title>Insert title here</title>
+</head>
+<body>
+
+<h1>Order Form</h1>
+<hr>
+<form th:action="@{/saveOrder}" method="post" th:object="${order}">
+<table>
+<tr>
+<td> Product Name </td>
+<td>
+<input type="text" th:field="*{name}" value="nike shoe">
+</td>
+</tr>
+<tr>
+<td> Price </td>
+<td>
+<input type="text" th:field="*{price}" value="250000">
+</td>
+</tr>
+<tr>
+<td> Description </td>
+<td>
+<textarea rows="8" th:field="*{description}" value="product description">product description</textarea>
+</td>
+</tr>
+
+<tr>
+<td></td>
+<td> <button type="submit" > Place Order Now </button>
+</tr>
+
+ </table>
+ 
+</form>
+
+
+</body>
+</html>
+
+=========================
+
+
+pom.xml
+========================
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>3.2.2</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+	<groupId>com.example</groupId>
+	<artifactId>email_attachment</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>email_attachment</name>
+	<description>Demo project for Spring Boot</description>
+	<properties>
+		<java.version>17</java.version>
+	</properties>
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-thymeleaf</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-devtools</artifactId>
+			<scope>runtime</scope>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>com.mysql</groupId>
+			<artifactId>mysql-connector-j</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		
+		<dependency>
+			<groupId>com.itextpdf</groupId>
+			<artifactId>html2pdf</artifactId>
+			<version>2.1.2</version>
+		</dependency>
+	
+     
+		
+		
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>
+
+
+===============================================
+
+
+
+
